@@ -7,7 +7,6 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KStreamBuilder;
 import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.ValueMapper;
 
 import java.util.Arrays;
 import java.util.Properties;
@@ -28,10 +27,7 @@ public class StreamsStartApp {
         KStream<String, String> wordCountInput = builder.stream("word-count-input");
 
         // 2 - map values to lowercase
-        wordCountInput.mapValues(value -> value.toLowerCase());
-
-
-        KTable<String, Long> wordCounts = (KTable<String, Long>) wordCountInput
+        KTable<String, Long> wordCounts = wordCountInput
                 .mapValues(text -> text.toLowerCase())
                 // can be alternatively written as:
                 // .mapValues(String::toLowerCase)
@@ -39,7 +35,7 @@ public class StreamsStartApp {
                 // 3 - flatmap values split by space
                 .flatMapValues(value -> Arrays.asList(value.split(" ")))
                 // 4 - select key to apply a key (we discard the old key)
-                .selectKey((ignoredKey, value) -> value)
+                .selectKey((ignoredKey, word) -> word)
                 // 5 - group by key before aggregation
                 .groupByKey()
                 // 6 - count occurences
@@ -49,5 +45,11 @@ public class StreamsStartApp {
 
         KafkaStreams streams = new KafkaStreams(builder, config);
         streams.start();
+
+        // printed the topology
+        System.out.println(streams.toString());
+
+        // shutdown hook to correctly close the streams application
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
 }
